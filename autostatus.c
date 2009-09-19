@@ -89,6 +89,19 @@ plugin_actions (PurplePlugin * plugin, gpointer context)
 }
 
 static gboolean
+set_status (PurpleAccount *acnt)
+{
+	PurpleStatus *status = purple_account_get_active_status (acnt);
+   GList *attrs = NULL;
+   attrs = g_list_append(attrs, "message");
+   attrs = g_list_append(attrs, (gpointer)"XXXXXXXXXXXXXXXXXXXXXXXXX");
+   purple_status_set_active_with_attrs_list(status, TRUE, attrs);
+   g_list_free(attrs);
+
+   return TRUE;
+}
+
+static gboolean
 plugin_load (PurplePlugin * plugin)
 {
 	purple_notify_message (plugin, PURPLE_NOTIFY_MSG_INFO, "Hello World!",
@@ -96,6 +109,19 @@ plugin_load (PurplePlugin * plugin)
 		NULL);
 
 	autostatus_plugin = plugin; /* assign this here so we have a valid handle later */
+
+   GList *acnt = NULL, *head = NULL;
+
+   head = acnt = purple_accounts_get_all_active();
+
+   while (acnt != NULL) {
+      if ((PurpleAccount *)acnt->data != NULL)
+         set_status (acnt->data);
+      acnt = acnt->next;
+   }
+
+   if (head != NULL)
+      g_list_free(head);
 
 	return TRUE;
 }
