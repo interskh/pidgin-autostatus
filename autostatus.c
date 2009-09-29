@@ -49,7 +49,26 @@
 #include <debug.h>
 #include <status.h>
 #include <savedstatuses.h>
+#include <prefs.h>
 
+/* global preference */
+static const char * const PREF_NONE = "/plugins/core/autostatus";
+static const char * const PREF_LOCATION = "/plugins/core/autostatus/string_location";
+
+PurplePluginPrefFrame* get_plugin_pref_frame(PurplePlugin*);
+static PurplePluginUiInfo plugin_prefs = {
+	get_plugin_pref_frame,
+	0,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL
+};
+
+/********************
+ * helper functions *
+ ********************/
 /* Trace a debugging message. Writes to log file as well as purple
  * debug sink.
  */
@@ -70,6 +89,20 @@ trace(const char *str, ...)
 
 	purple_debug_info(AUTOSTATUS_ID, "%s\n", buf);
 	g_free(buf);
+}
+
+PurplePluginPrefFrame *get_plugin_pref_frame(PurplePlugin *plugin) {
+	PurplePluginPrefFrame *frame;
+	PurplePluginPref *pref;
+
+   trace("creating preferences frame");
+   frame = purple_plugin_pref_frame_new();
+   pref = purple_plugin_pref_new_with_name_and_label(PREF_LOCATION, "Default location prompt");
+   purple_plugin_pref_set_type(pref, PURPLE_PLUGIN_PREF_STRING_FORMAT);
+
+   purple_plugin_pref_frame_add(frame, pref);
+
+   return frame;
 }
 
 /* we're adding this here and assigning it in plugin_load because we need
@@ -114,7 +147,7 @@ plugin_actions (PurplePlugin * plugin, gpointer context)
 }
 
 static gboolean
-set_status (PurpleAccount *acnt, char *loc)
+set_status (PurpleAccount *acnt, const char *loc)
 {
    // discover the pidgin saved status in use for this account
    const char *savedmessage = "";
@@ -157,9 +190,11 @@ set_status (PurpleAccount *acnt, char *loc)
 static gboolean
 plugin_load (PurplePlugin * plugin)
 {
-	purple_notify_message (plugin, PURPLE_NOTIFY_MSG_INFO, "Hello World!",
-		"This is the Hello World! plugin :)", NULL, NULL,
-		NULL);
+
+   trace("plugin loading");
+
+   /* TODO time out */
+	//g_tid = purple_timeout_add(INTERVAL, &cb_timeout, 0);
 
 	autostatus_plugin = plugin; /* assign this here so we have a valid handle later */
 
@@ -178,7 +213,7 @@ plugin_load (PurplePlugin * plugin)
    if (head != NULL)
       g_list_free(head);
 
-   trace("Status set for all accounts");
+   trace("status set for all accounts");
 
 	return TRUE;
 }
@@ -211,7 +246,7 @@ static PurplePluginInfo info = {
 
 	NULL,
 	NULL,
-	NULL,
+	&plugin_prefs,
 	plugin_actions,		/* this tells libpurple the address of the function to call
 				   to get the list of plugin actions. */
 	NULL,
@@ -223,6 +258,10 @@ static PurplePluginInfo info = {
 static void
 init_plugin (PurplePlugin * plugin)
 {
+   trace("init");
+	purple_prefs_add_none(PREF_NONE);
+	purple_prefs_add_string(PREF_LOCATION, "");
+   trace("done");
 }
 
 PURPLE_INIT_PLUGIN (hello_world, init_plugin, info)
