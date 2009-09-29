@@ -182,9 +182,9 @@ set_status (PurpleAccount *acnt, const char *loc)
    attrs = g_list_append(attrs, (gpointer)msg);
    purple_status_set_active_with_attrs_list(status, TRUE, attrs);
    g_list_free(attrs);
-   free(msg);
-
    trace("setup the account(%s) status: %s", acnt->username, msg);
+
+   free(msg);
 
    return TRUE;
 }
@@ -276,10 +276,8 @@ static PurplePluginInfo info = {
 static void
 init_plugin (PurplePlugin * plugin)
 {
-   trace("init");
 	purple_prefs_add_none(PREF_NONE);
 	purple_prefs_add_string(PREF_LOCATION, "");
-   trace("done");
 }
 
 PURPLE_INIT_PLUGIN (hello_world, init_plugin, info)
