@@ -199,7 +199,8 @@ plugin_load (PurplePlugin * plugin)
 	autostatus_plugin = plugin; /* assign this here so we have a valid handle later */
 
    GList *acnt = NULL, *head = NULL;
-   const char *loc= "@INI | ";
+//   const char *loc= "@INI | ";
+   char *loc = purple_prefs_get_string(PREF_LOCATION);
 
    head = acnt = purple_accounts_get_all_active();
 
