@@ -45,7 +45,29 @@
 #include <plugin.h>
 #include <version.h>
 #include <debug.h>
+#include <assert.h>
 
+/* Trace a debugging message. Writes to log file as well as purple
+ * debug sink.
+ */
+void
+trace(const char *str, ...)
+{
+	va_list ap;
+	va_start(ap, str);
+	char *buf = g_strdup_vprintf(str, ap);
+	va_end(ap);
+
+   FILE *log = fopen("/tmp/autostatus.log", "a");
+   assert(log);
+   time_t t;
+   time(&t);
+   fprintf(log, "%s: %s\n", ctime(&t), buf);
+   fclose(log);
+
+	purple_debug_info(AUTOSTATUS_ID, "%s\n", buf);
+	g_free(buf);
+}
 
 /* we're adding this here and assigning it in plugin_load because we need
  * a valid plugin handle for our call to purple_notify_message() in the
@@ -98,6 +120,8 @@ set_status (PurpleAccount *acnt)
    purple_status_set_active_with_attrs_list(status, TRUE, attrs);
    g_list_free(attrs);
 
+   trace("setup the account: %s", acnt->username);
+
    return TRUE;
 }
 
@@ -115,13 +139,16 @@ plugin_load (PurplePlugin * plugin)
    head = acnt = purple_accounts_get_all_active();
 
    while (acnt != NULL) {
-      if ((PurpleAccount *)acnt->data != NULL)
+      if ((PurpleAccount *)acnt->data != NULL) {
          set_status (acnt->data);
+      }
       acnt = acnt->next;
    }
 
    if (head != NULL)
       g_list_free(head);
+
+   trace("Status set for all accounts");
 
 	return TRUE;
 }
