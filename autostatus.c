@@ -32,6 +32,8 @@
 #define AUTOSTATUS_VERSION	"0.01"
 
 #include <glib.h>
+#include <assert.h>
+#include <string.h>
 
 #ifndef G_GNUC_NULL_TERMINATED
 # if __GNUC__ >= 4
@@ -45,7 +47,8 @@
 #include <plugin.h>
 #include <version.h>
 #include <debug.h>
-#include <assert.h>
+#include <status.h>
+#include <savedstatuses.h>
 
 /* Trace a debugging message. Writes to log file as well as purple
  * debug sink.
@@ -113,14 +116,42 @@ plugin_actions (PurplePlugin * plugin, gpointer context)
 static gboolean
 set_status (PurpleAccount *acnt)
 {
+   // discover the pidgin saved status in use for this account
+   const char *savedmessage = "";
+   {
+      PurpleSavedStatus *savedstatus = purple_savedstatus_get_current();
+      if (savedstatus)
+      {
+         PurpleSavedStatusSub *savedsubstatus = purple_savedstatus_get_substatus(savedstatus, acnt);
+         if (savedsubstatus)
+         {
+            // use account-specific saved status
+            savedmessage = purple_savedstatus_substatus_get_message(savedsubstatus);
+         }
+         else
+         {
+            // don't have an account-specific saved status, use the general one
+            savedmessage = purple_savedstatus_get_message(savedstatus);
+         }
+      }
+   }
+
+   const char *location = "@INI";
+   /* generate status */
+   char *msg = (char *)malloc(strlen(savedmessage)+strlen(location)+2);
+   strcpy(msg, location);
+   strcat(msg, " ");
+   strcat(msg, savedmessage);
+
 	PurpleStatus *status = purple_account_get_active_status (acnt);
    GList *attrs = NULL;
    attrs = g_list_append(attrs, "message");
-   attrs = g_list_append(attrs, (gpointer)"XXXXXXXXXXXXXXXXXXXXXXXXX");
+   attrs = g_list_append(attrs, (gpointer)msg);
    purple_status_set_active_with_attrs_list(status, TRUE, attrs);
    g_list_free(attrs);
+   free(msg);
 
-   trace("setup the account: %s", acnt->username);
+   trace("setup the account(%s) status: %s", acnt->username, msg);
 
    return TRUE;
 }
