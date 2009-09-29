@@ -102,6 +102,8 @@ PurplePluginPrefFrame *get_plugin_pref_frame(PurplePlugin *plugin) {
 
    purple_plugin_pref_frame_add(frame, pref);
 
+   trace("preference done");
+
    return frame;
 }
 
@@ -188,18 +190,10 @@ set_status (PurpleAccount *acnt, const char *loc)
 }
 
 static gboolean
-plugin_load (PurplePlugin * plugin)
+set_status_all()
 {
-
-   trace("plugin loading");
-
-   /* TODO time out */
-	//g_tid = purple_timeout_add(INTERVAL, &cb_timeout, 0);
-
-	autostatus_plugin = plugin; /* assign this here so we have a valid handle later */
-
    GList *acnt = NULL, *head = NULL;
-//   const char *loc= "@INI | ";
+
    char *loc = purple_prefs_get_string(PREF_LOCATION);
 
    head = acnt = purple_accounts_get_all_active();
@@ -215,6 +209,29 @@ plugin_load (PurplePlugin * plugin)
       g_list_free(head);
 
    trace("status set for all accounts");
+
+   return TRUE;
+}
+
+static gboolean
+plugin_load (PurplePlugin * plugin)
+{
+
+   trace("plugin loading");
+
+   /* TODO time out */
+   /* Note: here need to consider serverl situation:
+    * 1. enable/disable account
+    * 2. change status
+    * 3. how to make sure nothing changes
+    * 4. diffenent status for different accounts
+    */
+   /* refresh each 10 seconds */
+	guint g_tid = purple_timeout_add_seconds(10, set_status_all, 0);
+
+	autostatus_plugin = plugin; /* assign this here so we have a valid handle later */
+
+   if (set_status_all()) trace ("plugin succesfully loaded");
 
 	return TRUE;
 }
