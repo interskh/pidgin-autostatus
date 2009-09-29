@@ -114,7 +114,7 @@ plugin_actions (PurplePlugin * plugin, gpointer context)
 }
 
 static gboolean
-set_status (PurpleAccount *acnt)
+set_status (PurpleAccount *acnt, char *loc)
 {
    // discover the pidgin saved status in use for this account
    const char *savedmessage = "";
@@ -136,11 +136,9 @@ set_status (PurpleAccount *acnt)
       }
    }
 
-   const char *location = "@INI";
    /* generate status */
-   char *msg = (char *)malloc(strlen(savedmessage)+strlen(location)+2);
-   strcpy(msg, location);
-   strcat(msg, " ");
+   char *msg = (char *)malloc(strlen(savedmessage)+strlen(loc)+1);
+   strcpy(msg, loc);
    strcat(msg, savedmessage);
 
 	PurpleStatus *status = purple_account_get_active_status (acnt);
@@ -166,12 +164,13 @@ plugin_load (PurplePlugin * plugin)
 	autostatus_plugin = plugin; /* assign this here so we have a valid handle later */
 
    GList *acnt = NULL, *head = NULL;
+   const char *loc= "@INI | ";
 
    head = acnt = purple_accounts_get_all_active();
 
    while (acnt != NULL) {
       if ((PurpleAccount *)acnt->data != NULL) {
-         set_status (acnt->data);
+         set_status (acnt->data, loc);
       }
       acnt = acnt->next;
    }
