@@ -51,9 +51,15 @@
 #include <savedstatuses.h>
 #include <prefs.h>
 
+typedef struct Rule{
+   gchar *status;
+   guint32 ip;
+   guint32 netmask;
+}Rule;
+
 /* global preference */
 static const char * const PREF_NONE = "/plugins/core/autostatus";
-static const char * const PREF_LOCATION = "/plugins/core/autostatus/string_location";
+static const char * const PREF_CONFIG = "/plugins/core/autostatus/string_config";
 
 PurplePluginPrefFrame* get_plugin_pref_frame(PurplePlugin*);
 static PurplePluginUiInfo plugin_prefs = {
@@ -65,6 +71,9 @@ static PurplePluginUiInfo plugin_prefs = {
 	NULL,
 	NULL
 };
+
+Rule *rules = NULL;
+unsigned int rule_cnt = 0;
 
 /********************
  * helper functions *
@@ -91,18 +100,137 @@ trace(const char *str, ...)
 	g_free(buf);
 }
 
+/* XXX be careful */
+gboolean
+load_one_rule(char **ptr, Rule *rule)
+{
+   char *ch = *ptr;
+   /*check "xxx.xxx.xxx.xxx/xxx\n" */
+   unsigned int i = 0;
+   unsigned int ip[4] = {0};
+   unsigned int nm = 0;
+   int ip_index = 0;
+   gboolean n_ip = TRUE; /* next char should be ip address */
+   gboolean n_num = TRUE; /* next char should be a number */
+
+   /* read first line */
+   while (ch[i]!=0 && ch[i]!='\n') {
+      switch (ch[i]) {
+         case '.': 
+            if (n_num == TRUE) return FALSE;
+            if (ip_index>3) return FALSE;
+            if (ip[ip_index] > 255) return FALSE;
+            ip_index++;
+            n_num = TRUE;
+            break;
+         case '/':
+            if (ip_index!=3 || n_num == TRUE) return FALSE;
+            n_num = TRUE; n_ip = FALSE;
+            break;
+         case '0':
+         case '1':
+         case '2':
+         case '3':
+         case '4':
+         case '5':
+         case '6':
+         case '7':
+         case '8':
+         case '9':
+            n_num = FALSE;
+            if (!n_ip) {
+               nm = nm *10 + (ch[i] - '0');
+            }
+            else {
+               ip[ip_index] = ip[ip_index]*10 + (ch[i] - '0');
+            }
+            break;
+         case '\r':
+            break;
+         default:
+            return FALSE;
+      }
+      i++;
+   }
+   if (ch[i] == 0) return FALSE;
+   else i++;
+   if (n_num == TRUE || n_ip == TRUE) return FALSE;
+
+   /* read second line */
+   char *str = ch + i;
+   while (ch[i]!=0 && ch[i]!='\n') {
+      i++;
+   }
+   if (ch[i] == 0) return FALSE;
+
+   /* construct rule */
+   rule->ip = (ip[0]<<24) + (ip[1]<<16) + (ip[2]<<8) + ip[3];
+   rule->netmask = nm;
+   char *status = (char *)malloc(ch+i+1-str);
+   strncpy(status, str, ch+i-str);
+   status[ch+i-str] = '\0';
+   rule->status = status;
+
+   *ptr = ch+i+1;
+
+   trace("get one rule:\nip: %d.%d.%d.%d/%d\nstr: %s", \
+         ip[0], ip[1], ip[2], ip[3], nm, status);
+
+   return TRUE;
+}
+
+/* On-disk configuration file format:
+ * ip(xxx.xxx.xxx.xxx)/netmask
+ * status
+ * ip(xxx.xxx.xxx.xxx)/netmask
+ * status
+ */
+gboolean
+load_config()
+{
+   /* load configuration file */
+   gchar *file = purple_prefs_get_string(PREF_CONFIG);
+   gchar *buf;
+   gsize len;
+   if (!g_file_get_contents(file, &buf, &len, NULL)) {
+      trace ("Load config file failed");
+      return FALSE;
+   }
+
+//   trace("get content %s", buf);
+//   trace("get length %d", len);
+
+   /* count rule number */
+   gsize i;
+   for (i=0; i<len; i++) {
+      if (buf[i] == '\n') rule_cnt++;
+   }
+   /* count here is not exactly the true, because it may happen that 
+    * \n\n\n, this would be fixed later */
+   rule_cnt = (rule_cnt +1)/2;   
+
+   rules = (Rule *)malloc(rule_cnt * sizeof(Rule));
+
+   /* parse rules */
+   char *ch = buf;
+   rule_cnt = 0;
+   while (load_one_rule(&ch, rules+rule_cnt)) {
+      rule_cnt++;
+   }
+
+   trace("get number of rules: %d", rule_cnt);
+
+   return TRUE;
+}
+
 PurplePluginPrefFrame *get_plugin_pref_frame(PurplePlugin *plugin) {
 	PurplePluginPrefFrame *frame;
 	PurplePluginPref *pref;
 
-   trace("creating preferences frame");
    frame = purple_plugin_pref_frame_new();
-   pref = purple_plugin_pref_new_with_name_and_label(PREF_LOCATION, "Default location prompt");
-   purple_plugin_pref_set_type(pref, PURPLE_PLUGIN_PREF_STRING_FORMAT);
 
+   pref = purple_plugin_pref_new_with_name_and_label(PREF_CONFIG, "Configuration file location: ");
    purple_plugin_pref_frame_add(frame, pref);
-
-   trace("preference done");
 
    return frame;
 }
@@ -194,7 +322,7 @@ set_status_all()
 {
    GList *acnt = NULL, *head = NULL;
 
-   char *loc = purple_prefs_get_string(PREF_LOCATION);
+   char *loc = "abc";//purple_prefs_get_string(PREF_LOCATION);
 
    head = acnt = purple_accounts_get_all_active();
 
@@ -219,17 +347,20 @@ plugin_load (PurplePlugin * plugin)
 
    trace("plugin loading");
 
+	autostatus_plugin = plugin; /* assign this here so we have a valid handle later */
+
    /* TODO time out */
    /* Note: here need to consider serverl situation:
     * 1. enable/disable account
     * 2. change status
     * 3. how to make sure nothing changes
     * 4. diffenent status for different accounts
+    * 5. move to another place!
     */
    /* refresh each 10 seconds */
 	guint g_tid = purple_timeout_add_seconds(10, set_status_all, 0);
 
-	autostatus_plugin = plugin; /* assign this here so we have a valid handle later */
+   load_config();
 
    if (set_status_all()) trace ("plugin succesfully loaded");
 
@@ -276,8 +407,10 @@ static PurplePluginInfo info = {
 static void
 init_plugin (PurplePlugin * plugin)
 {
+   gchar *dir = g_build_filename(purple_user_dir(), "autostatus.config", NULL);
+
 	purple_prefs_add_none(PREF_NONE);
-	purple_prefs_add_string(PREF_LOCATION, "");
+	purple_prefs_add_string(PREF_CONFIG, dir);
 }
 
 PURPLE_INIT_PLUGIN (hello_world, init_plugin, info)
