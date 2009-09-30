@@ -50,6 +50,7 @@
 #include <status.h>
 #include <savedstatuses.h>
 #include <prefs.h>
+#include <network.h>
 
 typedef struct Rule{
    gchar *status;
@@ -73,7 +74,8 @@ static PurplePluginUiInfo plugin_prefs = {
 };
 
 Rule *rules = NULL;
-unsigned int rule_cnt = 0;
+guint32 rule_cnt = 0;
+guint32 myip = 0;
 
 /********************
  * helper functions *
@@ -223,6 +225,23 @@ load_config()
    return TRUE;
 }
 
+/* pre: ip should be well formatted */
+guint32 ip_atoi(const char *ch) {
+   int i=0, j=0;
+   unsigned int ip[4]={0};
+   while (ch[i] != '\0') {
+      if (ch[i] == '.') j++;
+      else ip[j] = (ch[i]-'0') + 10*ip[j];
+      i++;
+   }
+   assert(j==3);
+   for (i=0; i<4; i++) {
+      assert(ip[i]<256);
+   }
+
+   return ((ip[0]<<24) + (ip[1]<<16) + (ip[2]<<8) + ip[3]);
+}
+
 PurplePluginPrefFrame *get_plugin_pref_frame(PurplePlugin *plugin) {
 	PurplePluginPrefFrame *frame;
 	PurplePluginPref *pref;
@@ -322,7 +341,26 @@ set_status_all()
 {
    GList *acnt = NULL, *head = NULL;
 
-   char *loc = "abc";//purple_prefs_get_string(PREF_LOCATION);
+   char *loc = "";//purple_prefs_get_string(PREF_LOCATION);
+
+   /* find the longest prefix rule */
+   guint32 i=0;
+   guint32 max_len = 0;
+   guint32 fit = 0;
+   gboolean found = FALSE;
+   trace(">>>>>>>>>myip = %x", myip);
+   for (i=0; i<rule_cnt; i++){
+      trace("rule: %x/%d", rules[i].ip, rules[i].netmask);
+      if ((rules[i].netmask > max_len) && \
+            (((myip ^ rules[i].ip) & (~0 << (32-rules[i].netmask))) == 0)) {
+         fit = i;
+         found = TRUE;
+      }
+   }
+   if (found) {
+      loc = rules[fit].status;
+      trace("Found fit rules, %s", loc);
+   }
 
    head = acnt = purple_accounts_get_all_active();
 
@@ -361,6 +399,11 @@ plugin_load (PurplePlugin * plugin)
 	guint g_tid = purple_timeout_add_seconds(10, set_status_all, 0);
 
    load_config();
+
+   char *ip = purple_network_get_my_ip(-1);
+   myip = ip_atoi(ip);
+   trace(">>>>>>>>>myip = %x", myip);
+   trace("my ip address: %s", ip);
 
    if (set_status_all()) trace ("plugin succesfully loaded");
 
