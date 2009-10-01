@@ -316,9 +316,13 @@ set_status (PurpleAccount *acnt, const char *loc)
    }
 
    /* generate status */
-   char *msg = (char *)malloc(strlen(savedmessage)+strlen(loc)+1);
-   strcpy(msg, loc);
-   strcat(msg, savedmessage);
+   char *msg;
+   if (savedmessage) {
+      msg = (char *)malloc(strlen(savedmessage)+strlen(loc)+1);
+      strcpy(msg, loc);
+      strcat(msg, savedmessage);
+   }
+   else msg = loc;
 
 	PurpleStatus *status = purple_account_get_active_status (acnt);
    GList *attrs = NULL;
@@ -328,7 +332,9 @@ set_status (PurpleAccount *acnt, const char *loc)
    g_list_free(attrs);
    trace("setup the account(%s) status: %s", acnt->username, msg);
 
-   free(msg);
+   if (savedmessage) {
+      free(msg);
+   }
 
    return TRUE;
 }
@@ -336,6 +342,7 @@ set_status (PurpleAccount *acnt, const char *loc)
 static gboolean
 set_status_all()
 {
+   trace("status setting..");
    GList *acnt = NULL, *head = NULL;
 
    char *loc = "";//purple_prefs_get_string(PREF_LOCATION);
