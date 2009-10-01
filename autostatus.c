@@ -76,6 +76,9 @@ static PurplePluginUiInfo plugin_prefs = {
 Rule *rules = NULL;
 guint32 rule_cnt = 0;
 guint32 myip = 0;
+gchar *str_myip = NULL;
+gchar *loc = "";
+
 
 /********************
  * helper functions *
@@ -343,28 +346,32 @@ static gboolean
 set_status_all()
 {
    trace("status setting..");
-   GList *acnt = NULL, *head = NULL;
 
-   char *loc = "";//purple_prefs_get_string(PREF_LOCATION);
+   char *ip = purple_network_get_my_ip(-1);
+   if (strcmp(str_myip, ip) != 0) {
+      strcpy(str_myip, ip);
+      myip = ip_atoi(ip);
 
-   /* find the longest prefix rule */
-   guint32 i=0;
-   guint32 max_len = 0;
-   guint32 fit = 0;
-   gboolean found = FALSE;
-   for (i=0; i<rule_cnt; i++){
-      trace("rule: %x/%d", rules[i].ip, rules[i].netmask);
-      if ((rules[i].netmask > max_len) && \
-            (((myip ^ rules[i].ip) & (~0 << (32-rules[i].netmask))) == 0)) {
-         fit = i;
-         found = TRUE;
+      /* find the longest prefix rule */
+      guint32 i=0;
+      guint32 max_len = 0;
+      guint32 fit = 0;
+      gboolean found = FALSE;
+      for (i=0; i<rule_cnt; i++){
+         trace("rule: %x/%d", rules[i].ip, rules[i].netmask);
+         if ((rules[i].netmask > max_len) && \
+               (((myip ^ rules[i].ip) & (~0 << (32-rules[i].netmask))) == 0)) {
+            fit = i;
+            found = TRUE;
+         }
+      }
+      if (found) {
+         loc = rules[fit].status;
+         trace("Found fit rules, %s", loc);
       }
    }
-   if (found) {
-      loc = rules[fit].status;
-      trace("Found fit rules, %s", loc);
-   }
 
+   GList *acnt = NULL, *head = NULL;
    head = acnt = purple_accounts_get_all_active();
 
    while (acnt != NULL) {
@@ -390,6 +397,8 @@ plugin_load (PurplePlugin * plugin)
 
 	autostatus_plugin = plugin; /* assign this here so we have a valid handle later */
 
+   str_myip = (gchar *)malloc(strlen("xxx.xxx.xxx.xxx"));
+
    /* TODO time out */
    /* Note: here need to consider serverl situation:
     * 1. enable/disable account
@@ -402,10 +411,6 @@ plugin_load (PurplePlugin * plugin)
 	guint g_tid = purple_timeout_add_seconds(10, set_status_all, 0);
 
    load_config();
-
-   char *ip = purple_network_get_my_ip(-1);
-   myip = ip_atoi(ip);
-   trace("my ip address: %s", ip);
 
    if (set_status_all()) trace ("plugin succesfully loaded");
 
