@@ -199,9 +199,6 @@ load_config()
       return FALSE;
    }
 
-//   trace("get content %s", buf);
-//   trace("get length %d", len);
-
    /* count rule number */
    gsize i;
    for (i=0; i<len; i++) {
@@ -225,7 +222,7 @@ load_config()
    return TRUE;
 }
 
-/* pre: ip should be well formatted */
+/* pre: ch should be well formatted */
 guint32 ip_atoi(const char *ch) {
    int i=0, j=0;
    unsigned int ip[4]={0};
@@ -348,7 +345,6 @@ set_status_all()
    guint32 max_len = 0;
    guint32 fit = 0;
    gboolean found = FALSE;
-   trace(">>>>>>>>>myip = %x", myip);
    for (i=0; i<rule_cnt; i++){
       trace("rule: %x/%d", rules[i].ip, rules[i].netmask);
       if ((rules[i].netmask > max_len) && \
@@ -402,7 +398,6 @@ plugin_load (PurplePlugin * plugin)
 
    char *ip = purple_network_get_my_ip(-1);
    myip = ip_atoi(ip);
-   trace(">>>>>>>>>myip = %x", myip);
    trace("my ip address: %s", ip);
 
    if (set_status_all()) trace ("plugin succesfully loaded");
