@@ -361,6 +361,7 @@ set_status_all()
          trace("rule: %x/%d", rules[i].ip, rules[i].netmask);
          if ((rules[i].netmask > max_len) && \
                (((myip ^ rules[i].ip) & (~0 << (32-rules[i].netmask))) == 0)) {
+            max_len = rules[i].netmask;
             fit = i;
             found = TRUE;
          }
