@@ -452,9 +452,9 @@ static PurplePluginInfo info = {
 	AUTOSTATUS_VERSION, 
 
 	"Auto Status Plugin",
-	"Auto Status Plugin",
+	"Automatically insert prompt into user status based on ip information",
 	"Kyle Sun <interskh@gmail.com>", /* correct author */
-	"http://xxx.xxx",
+	"http://code.google.com/p/pidgin-autostatus/",
 
 
 	plugin_load,
