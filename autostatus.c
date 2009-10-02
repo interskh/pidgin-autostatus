@@ -372,7 +372,10 @@ set_status_all()
       guint32 fit = 0;
       gboolean found = FALSE;
       for (i=0; i<rule_cnt; i++){
-         if ((rules[i].netmask >= max_len) && \
+         if (!found && rules[i].netmask == 0 ) {
+            fit = i; found = TRUE; continue;
+         }
+         if ((rules[i].netmask > max_len) && \
                (((myip ^ rules[i].ip) & (~0 << (32-rules[i].netmask))) == 0)) {
             max_len = rules[i].netmask;
             fit = i;
