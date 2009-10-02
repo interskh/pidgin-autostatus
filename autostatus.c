@@ -250,6 +250,20 @@ PurplePluginPrefFrame *get_plugin_pref_frame(PurplePlugin *plugin) {
 
    pref = purple_plugin_pref_new_with_name_and_label(PREF_CONFIG, "Configuration file location: ");
    purple_plugin_pref_frame_add(frame, pref);
+   
+   pref = purple_plugin_pref_new_with_label("Current IP address:");
+   purple_plugin_pref_set_type(pref,PURPLE_PLUGIN_PREF_NONE);
+   purple_plugin_pref_frame_add(frame, pref);
+   pref = purple_plugin_pref_new_with_label(str_myip);
+   purple_plugin_pref_set_type(pref,PURPLE_PLUGIN_PREF_INFO);
+   purple_plugin_pref_frame_add(frame, pref);
+
+   pref = purple_plugin_pref_new_with_label("Current rule:");
+   purple_plugin_pref_set_type(pref,PURPLE_PLUGIN_PREF_NONE);
+   purple_plugin_pref_frame_add(frame, pref);
+   pref = purple_plugin_pref_new_with_label(loc);
+   purple_plugin_pref_set_type(pref,PURPLE_PLUGIN_PREF_INFO);
+   purple_plugin_pref_frame_add(frame, pref);
 
    return frame;
 }
@@ -358,7 +372,6 @@ set_status_all()
       guint32 fit = 0;
       gboolean found = FALSE;
       for (i=0; i<rule_cnt; i++){
-         trace("rule: %x/%d", rules[i].ip, rules[i].netmask);
          if ((rules[i].netmask > max_len) && \
                (((myip ^ rules[i].ip) & (~0 << (32-rules[i].netmask))) == 0)) {
             max_len = rules[i].netmask;
@@ -370,6 +383,7 @@ set_status_all()
          loc = rules[fit].status;
          trace("Found fit rules, %s", loc);
       }
+      else loc = "";
    }
 
    GList *acnt = NULL, *head = NULL;
